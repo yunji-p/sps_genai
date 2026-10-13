@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# CIFAR-10 download (never commit)
+data/

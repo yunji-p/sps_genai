@@ -64,3 +64,19 @@ def get_similarity(request: SimilarityRequest):
     if score is None:
         raise HTTPException(status_code=404, detail="One of the words has no vector in the model")
     return {"word1": request.word1, "word2": request.word2, "cosine_similarity": score}
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from PIL import UnidentifiedImageError
+
+from app.image_classifier import ImageClassifier
+
+image_classifier = ImageClassifier()  # load the trained CNN once, at startup
+
+@app.post("/classify")
+async def classify_image(file: UploadFile = File(...)):
+    image_bytes = await file.read()
+    try:
+        result = image_classifier.predict(image_bytes)
+    except UnidentifiedImageError:
+        raise HTTPException(status_code=400, detail="File is not a readable image.")
+    return {"filename": file.filename, **result}
