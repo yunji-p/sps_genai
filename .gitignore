@@ -11,3 +11,8 @@ wheels/
 
 # CIFAR-10 download (never commit)
 data/
+
+# local test output
+digits.png
+docker_digits.png
+grader_digits.png
