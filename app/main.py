@@ -1,5 +1,8 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+
+from .image_generator import DigitGenerator
 
 from app.bigram_model import BigramModel
 from app.embedding_model import EmbeddingModel
@@ -80,3 +83,28 @@ async def classify_image(file: UploadFile = File(...)):
     except UnidentifiedImageError:
         raise HTTPException(status_code=400, detail="File is not a readable image.")
     return {"filename": file.filename, **result}
+
+_digit_generator: DigitGenerator | None = None
+
+
+def get_digit_generator() -> DigitGenerator:
+    """Load on first request so the app still boots if the weights are missing."""
+    global _digit_generator
+    if _digit_generator is None:
+        try:
+            _digit_generator = DigitGenerator()
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=503, detail=str(exc))
+    return _digit_generator
+
+
+class DigitRequest(BaseModel):
+    num_images: int = Field(16, ge=1, le=64, description="How many digits to generate")
+    seed: int | None = Field(None, description="Fix the seed for a reproducible image")
+
+
+@app.post("/generate-image")
+def generate_image(request: DigitRequest):
+    """Generate handwritten digits with the trained GAN, returned as one PNG grid."""
+    png = get_digit_generator().generate_png(request.num_images, request.seed)
+    return StreamingResponse(png, media_type="image/png")
